@@ -1,0 +1,182 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "type": "object",
+      "description": "Represents a user of the ExpenseTrack application.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the User entity."
+        },
+        "name": {
+            "type": "string",
+            "description": "The user's display name."
+        },
+        "email": {
+            "type": "string",
+            "format": "email",
+            "description": "The user's email."
+        }
+      },
+      "required": [
+        "id"
+      ]
+    },
+    "Transaction": {
+      "title": "Transaction",
+      "type": "object",
+      "description": "Represents an income or expense record.",
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": ["income", "expense"]
+        },
+        "date": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "reason": {
+          "type": "string"
+        },
+        "notes": {
+          "type": "string"
+        },
+        "amount": {
+          "type": "number"
+        },
+        "category": {
+          "type": "string"
+        },
+        "investmentCategory": {
+          "type": "string"
+        },
+        "paymentMethod": {
+          "type": "string"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Timestamp of when the transaction was created."
+        }
+      },
+      "required": ["type", "date", "reason", "amount", "paymentMethod"]
+    },
+    "UserPreferences": {
+      "title": "User Preferences",
+      "type": "object",
+      "description": "Stores user-specific settings.",
+      "properties": {
+        "currency": {
+          "type": "string",
+          "description": "The user's preferred currency code (e.g., 'USD', 'INR')."
+        }
+      }
+    },
+    "Category": {
+      "title": "Category",
+      "type": "object",
+      "description": "Represents a user-defined expense category.",
+      "properties": {
+        "label": {
+          "type": "string"
+        },
+        "icon": {
+          "type": "string"
+        }
+      },
+      "required": ["label", "icon"]
+    },
+    "PaymentMethod": {
+      "title": "Payment Method",
+      "type": "object",
+      "description": "Represents a user-defined payment method.",
+      "properties": {
+        "label": {
+          "type": "string"
+        }
+      },
+      "required": ["label"]
+    },
+    "InvestmentCategory": {
+      "title": "Investment Category",
+      "type": "object",
+      "description": "Represents a user-defined investment category.",
+      "properties": {
+        "label": {
+          "type": "string"
+        }
+      },
+      "required": ["label"]
+    }
+  },
+  "auth": {
+    "providers": [
+      "password"
+    ]
+  },
+  "firestore": {
+    "structure": [
+      {
+        "path": "/users/{userId}",
+        "definition": {
+          "entityName": "User",
+          "schema": {
+            "$ref": "#/backend/entities/User"
+          },
+          "description": "Stores user profiles. The userId is the Firebase Authentication UID."
+        }
+      },
+      {
+        "path": "/users/{userId}/transactions/{transactionId}",
+        "definition": {
+          "entityName": "Transaction",
+          "schema": {
+            "$ref": "#/backend/entities/Transaction"
+          },
+          "description": "Stores transaction data for each user."
+        }
+      },
+      {
+        "path": "/users/{userId}/preferences/user-preferences",
+        "definition": {
+          "entityName": "UserPreferences",
+          "schema": {
+            "$ref": "#/backend/entities/UserPreferences"
+          },
+          "description": "Stores user-specific preferences like currency."
+        }
+      },
+      {
+        "path": "/users/{userId}/categories/{categoryId}",
+        "definition": {
+          "entityName": "Category",
+          "schema": {
+            "$ref": "#/backend/entities/Category"
+          },
+          "description": "Stores user-defined expense categories."
+        }
+      },
+      {
+        "path": "/users/{userId}/paymentMethods/{methodId}",
+        "definition": {
+          "entityName": "PaymentMethod",
+          "schema": {
+            "$ref": "#/backend/entities/PaymentMethod"
+          },
+          "description": "Stores user-defined payment methods."
+        }
+      },
+      {
+        "path": "/users/{userId}/investmentCategories/{investCategoryId}",
+        "definition": {
+          "entityName": "InvestmentCategory",
+          "schema": {
+            "$ref": "#/backend/entities/InvestmentCategory"
+          },
+          "description": "Stores user-defined investment categories."
+        }
+      }
+    ]
+  }
+}
