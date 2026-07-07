@@ -33,6 +33,7 @@ export function LoansProvider({ children }: { children: ReactNode }) {
       startDate: parseDate(l.startDate),
       createdAt: parseDate(l.createdAt),
       updatedAt: parseDate(l.updatedAt),
+      expenseSyncStartDate: l.expenseSyncStartDate ? parseDate(l.expenseSyncStartDate) : undefined,
       interestRateHistory: (l.interestRateHistory || []).map((rev: any) => ({
           ...rev,
           effectiveDate: parseDate(rev.effectiveDate)
@@ -52,6 +53,7 @@ export function LoansProvider({ children }: { children: ReactNode }) {
       const dataToSave: any = {
         ...loan,
         startDate: Timestamp.fromDate(new Date(loan.startDate)),
+        expenseSyncStartDate: loan.expenseSyncStartDate ? Timestamp.fromDate(new Date(loan.expenseSyncStartDate)) : null,
         interestRateHistory: (loan.interestRateHistory || []).map(rev => ({
             ...rev,
             effectiveDate: Timestamp.fromDate(new Date(rev.effectiveDate))
