@@ -126,7 +126,7 @@ export function AddGoldLoanForm({
       form.reset();
     } catch (error) {
       console.error('Failed to save gold loan', error);
-      alert('Failed to save gold loan. Please try again.');
+      alert(`Failed to save gold loan: ${error instanceof Error ? error.message : String(error)}`);
     } finally {
       setIsSubmitting(false);
     }
