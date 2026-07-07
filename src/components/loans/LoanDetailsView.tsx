@@ -219,8 +219,8 @@ export function LoanDetailsView({ loanId }: { loanId: string }) {
                         </defs>
                         <CartesianGrid strokeDasharray="3 3" vertical={false} />
                         <XAxis dataKey="name" fontSize={12} tickMargin={10} />
-                        <YAxis tickFormatter={(val) => \`$\${(val/1000).toFixed(0)}k\`} fontSize={12} />
-                        <RechartsTooltip formatter={(value: number) => \`$\${value.toLocaleString(undefined, {maximumFractionDigits: 0})}\`} />
+                        <YAxis tickFormatter={(val) => `$${(val/1000).toFixed(0)}k`} fontSize={12} />
+                        <RechartsTooltip formatter={(value: number) => `$${value.toLocaleString(undefined, {maximumFractionDigits: 0})}`} />
                         <Legend />
                         <Area type="monotone" dataKey="balance" name="Outstanding" stroke="#ef4444" fillOpacity={1} fill="url(#colorBalance)" />
                         <Area type="monotone" dataKey="principalPaid" name="Paid Principal" stroke="#22c55e" fillOpacity={1} fill="url(#colorPaid)" />
