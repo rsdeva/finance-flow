@@ -10,11 +10,14 @@ import { PlusCircle, Building, Calendar, IndianRupee, TrendingDown, Trash2 } fro
 import { Skeleton } from '@/components/ui/skeleton';
 import { generateAmortizationSchedule, getOutstandingBalance } from '@/lib/loan-utils';
 import { formatINR } from '@/lib/format-inr';
-import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from 'recharts';
+import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend, BarChart, Bar, XAxis, YAxis, CartesianGrid } from 'recharts';
+import { format, isSameMonth, parseISO, startOfDay, isBefore } from 'date-fns';
+import { Input } from '@/components/ui/input';
 
 export function LoansDashboard() {
   const { loans, isLoading, deleteLoan } = useLoans();
   const [isAddFormOpen, setIsAddFormOpen] = useState(false);
+  const [selectedMonth, setSelectedMonth] = useState(() => format(new Date(), 'yyyy-MM'));
 
   const handleDeleteLoan = async (id: string, name: string, e: React.MouseEvent) => {
     e.preventDefault();
@@ -65,6 +68,34 @@ export function LoansDashboard() {
       chartData
     };
   }, [loans]);
+
+  // Monthly breakdown calculation
+  const monthlyBreakdown = useMemo(() => {
+    const targetDate = parseISO(`${selectedMonth}-01`);
+    let totalPrincipal = 0;
+    let totalInterest = 0;
+    let totalEmi = 0;
+    const loanDetails: any[] = [];
+
+    loans.forEach(loan => {
+      const schedule = generateAmortizationSchedule(loan.principal, loan.interestRate, loan.tenureMonths, loan.startDate, loan.emiDueDate, loan.emiAmount);
+      const entry = schedule.find(e => isSameMonth(e.dueDate, targetDate));
+      
+      if (entry) {
+        totalPrincipal += entry.principalComponent;
+        totalInterest += entry.interestComponent;
+        totalEmi += entry.emiAmount;
+        loanDetails.push({
+          name: loan.name,
+          principal: entry.principalComponent,
+          interest: entry.interestComponent,
+          emi: entry.emiAmount,
+        });
+      }
+    });
+
+    return { totalPrincipal, totalInterest, totalEmi, loanDetails };
+  }, [loans, selectedMonth]);
 
   if (isLoading) {
     return (
@@ -160,6 +191,9 @@ export function LoansDashboard() {
                  const schedule = generateAmortizationSchedule(loan.principal, loan.interestRate, loan.tenureMonths, loan.startDate, loan.emiDueDate, loan.emiAmount);
                  const outstanding = getOutstandingBalance(schedule);
                  const progress = ((loan.principal - outstanding) / loan.principal) * 100;
+                 
+                 const today = startOfDay(new Date());
+                 const pendingMonths = schedule.filter(e => !isBefore(startOfDay(e.dueDate), today)).length;
 
                  return (
                   <div key={loan.id} className="relative group">
@@ -168,6 +202,7 @@ export function LoansDashboard() {
                         <div className="space-y-1">
                           <p className="font-medium leading-none">{loan.name}</p>
                           <p className="text-sm text-muted-foreground">{loan.bank}</p>
+                          <p className="text-xs text-primary mt-1">Pending Tenure: {pendingMonths} months</p>
                         </div>
                         <div className="text-right space-y-1">
                           <p className="font-medium">Outstanding: {formatINR(outstanding)}</p>
@@ -224,6 +259,61 @@ export function LoansDashboard() {
           </CardContent>
         </Card>
       </div>
+
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between">
+          <div>
+            <CardTitle>Monthly Repayment Breakdown</CardTitle>
+            <p className="text-sm text-muted-foreground mt-1">See how much principal and interest you are paying in a specific month.</p>
+          </div>
+          <div className="w-48">
+            <Input 
+              type="month" 
+              value={selectedMonth} 
+              onChange={(e) => setSelectedMonth(e.target.value)} 
+            />
+          </div>
+        </CardHeader>
+        <CardContent>
+          <div className="grid gap-4 md:grid-cols-3 mb-6">
+            <div className="p-4 bg-muted/50 rounded-lg border">
+              <p className="text-sm text-muted-foreground">Total EMI</p>
+              <p className="text-2xl font-bold">{formatINR(monthlyBreakdown.totalEmi)}</p>
+            </div>
+            <div className="p-4 bg-primary/10 rounded-lg border border-primary/20">
+              <p className="text-sm text-primary">Principal Component</p>
+              <p className="text-2xl font-bold text-primary">{formatINR(monthlyBreakdown.totalPrincipal)}</p>
+            </div>
+            <div className="p-4 bg-destructive/10 rounded-lg border border-destructive/20">
+              <p className="text-sm text-destructive">Interest Component</p>
+              <p className="text-2xl font-bold text-destructive">{formatINR(monthlyBreakdown.totalInterest)}</p>
+            </div>
+          </div>
+          
+          {monthlyBreakdown.loanDetails.length > 0 ? (
+            <div className="h-[300px]">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={monthlyBreakdown.loanDetails} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
+                  <CartesianGrid strokeDasharray="3 3" opacity={0.2} />
+                  <XAxis dataKey="name" />
+                  <YAxis tickFormatter={(val) => `₹${val / 1000}k`} />
+                  <Tooltip 
+                    formatter={(value: number) => formatINR(value)}
+                    cursor={{ fill: 'transparent' }} 
+                  />
+                  <Legend />
+                  <Bar dataKey="principal" name="Principal" stackId="a" fill="hsl(var(--primary))" radius={[0, 0, 4, 4]} />
+                  <Bar dataKey="interest" name="Interest" stackId="a" fill="hsl(var(--destructive))" radius={[4, 4, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          ) : (
+            <div className="h-[200px] flex items-center justify-center text-muted-foreground border border-dashed rounded-lg">
+              No active EMIs for the selected month.
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
       <AddLoanForm isOpen={isAddFormOpen} setIsOpen={setIsAddFormOpen} />
     </div>
