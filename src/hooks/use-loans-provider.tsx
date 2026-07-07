@@ -98,12 +98,34 @@ export function LoansProvider({ children }: { children: ReactNode }) {
     [firestore, user?.uid]
   );
 
+  const deleteRateRevision = useCallback(
+    async (loanId: string, revisionId: string) => {
+      if (!firestore || !user?.uid) {
+        throw new Error('User is not authenticated.');
+      }
+      const loan = loans.find(l => l.id === loanId);
+      if (!loan) throw new Error('Loan not found');
+
+      const updatedHistory = (loan.interestRateHistory || []).filter(r => r.id !== revisionId);
+      const loanDoc = doc(firestore, 'users', user.uid, 'loans', loanId);
+      await updateDoc(loanDoc, {
+        interestRateHistory: updatedHistory.map(rev => ({
+          ...rev,
+          effectiveDate: Timestamp.fromDate(new Date(rev.effectiveDate))
+        })),
+        updatedAt: serverTimestamp()
+      });
+    },
+    [firestore, user?.uid, loans]
+  );
+
   const value = {
     loans,
     isLoading,
     addLoan,
     updateLoan,
     deleteLoan,
+    deleteRateRevision,
   };
 
   return (

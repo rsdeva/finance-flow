@@ -9,6 +9,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useLoans } from '@/hooks/use-loans';
 import { Loan, InterestRateRevision } from '@/lib/types';
 import { calculateEMI, calculateNewTenure, generateAmortizationSchedule, getOutstandingBalance } from '@/lib/loan-utils';
+import { formatINR } from '@/lib/format-inr';
 
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
@@ -136,8 +137,10 @@ export function AddRevisionDialog({ isOpen, setIsOpen, loan }: AddRevisionDialog
         remarks: data.remarks
       });
 
+      // Destructure to explicitly exclude loan.id (prevent Firestore field overwrite)
+      const { id: _id, createdAt: _ca, updatedAt: _ua, ...loanWithoutMeta } = loan as any;
       await updateLoan(loan.id, {
-        ...loan,
+        ...loanWithoutMeta,
         interestRateHistory: newHistory
       });
       
@@ -246,10 +249,10 @@ export function AddRevisionDialog({ isOpen, setIsOpen, loan }: AddRevisionDialog
                 </div>
                 <div className="text-right">
                   <div className="font-semibold text-lg">
-                    New EMI: {previewEmi !== null ? `$${previewEmi.toFixed(2)}` : '--'}
+                    New EMI: {previewEmi !== null ? formatINR(previewEmi, true) : '--'}
                   </div>
                   <div className="text-xs text-muted-foreground mt-1">
-                    Remaining Tenure: {previewTenure !== null ? previewTenure + ' months' : '--'}
+                    Remaining Tenure: {previewTenure !== null ? `${previewTenure} months (${Math.floor(previewTenure/12)} Yr ${previewTenure%12} Mo)` : '--'}
                   </div>
                 </div>
               </CardContent>

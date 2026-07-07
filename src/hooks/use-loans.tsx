@@ -7,6 +7,7 @@ export type LoansContextType = {
   addLoan: (loan: Omit<Loan, 'id' | 'createdAt' | 'updatedAt'>) => Promise<void>;
   updateLoan: (id: string, loan: Omit<Loan, 'id' | 'createdAt' | 'updatedAt'>) => Promise<void>;
   deleteLoan: (id: string) => Promise<void>;
+  deleteRateRevision: (loanId: string, revisionId: string) => Promise<void>;
 };
 
 export const LoansContext = createContext<LoansContextType | undefined>(undefined);

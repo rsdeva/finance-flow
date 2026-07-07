@@ -8,6 +8,7 @@ import { Loader2, Calculator } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useLoans } from '@/hooks/use-loans';
 import { calculateEMI, generateAmortizationSchedule, calculateTotalInterest } from '@/lib/loan-utils';
+import { formatINR } from '@/lib/format-inr';
 
 import { Button } from '@/components/ui/button';
 import {
@@ -264,11 +265,11 @@ export function AddLoanForm({ isOpen, setIsOpen }: AddLoanFormProps) {
                 </div>
                 <div className="text-right">
                   <div className="font-semibold text-lg">
-                    {previewEmi !== null ? `$${previewEmi.toFixed(2)}` : '--'}
+                    {previewEmi !== null ? formatINR(previewEmi, true) : '--'}
                   </div>
                   {previewTotalInterest !== null && (
                     <div className="text-xs text-muted-foreground">
-                      Total Interest: ${previewTotalInterest.toFixed(2)}
+                      Total Interest: {formatINR(previewTotalInterest)}
                     </div>
                   )}
                 </div>
