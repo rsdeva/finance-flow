@@ -7,6 +7,7 @@ import { z } from 'zod';
 import { Loader2, Calculator } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useLoans } from '@/hooks/use-loans';
+import { Loan } from '@/lib/types';
 import { calculateEMI, generateAmortizationSchedule, calculateTotalInterest } from '@/lib/loan-utils';
 import { formatINR } from '@/lib/format-inr';
 
@@ -53,36 +54,76 @@ type LoanFormValues = z.infer<typeof loanSchema>;
 interface AddLoanFormProps {
   isOpen: boolean;
   setIsOpen: (open: boolean) => void;
+  loanToEdit?: Loan;
 }
 
-export function AddLoanForm({ isOpen, setIsOpen }: AddLoanFormProps) {
+export function AddLoanForm({ isOpen, setIsOpen, loanToEdit }: AddLoanFormProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [previewEmi, setPreviewEmi] = useState<number | null>(null);
   const [previewTotalInterest, setPreviewTotalInterest] = useState<number | null>(null);
   
-  const { addLoan } = useLoans();
+  const { addLoan, updateLoan } = useLoans();
   const { toast } = useToast();
 
   const form = useForm<LoanFormValues>({
     resolver: zodResolver(loanSchema),
     defaultValues: {
-      name: '',
-      bank: '',
-      principal: 0,
-      interestRate: 0,
-      interestType: 'fixed',
-      startDate: new Date().toISOString().split('T')[0],
-      tenureMonths: 12,
-      emiAmount: 0,
-      emiDueDate: 1,
-      processingFee: 0,
-      accountNumber: '',
-      remarks: '',
+      name: loanToEdit?.name || '',
+      bank: loanToEdit?.bank || '',
+      principal: loanToEdit?.principal || 0,
+      interestRate: loanToEdit?.interestRate || 0,
+      interestType: loanToEdit?.interestType || 'fixed',
+      startDate: loanToEdit ? new Date(loanToEdit.startDate).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
+      tenureMonths: loanToEdit?.tenureMonths || 12,
+      emiAmount: loanToEdit?.emiAmount || 0,
+      emiDueDate: loanToEdit?.emiDueDate || 1,
+      processingFee: loanToEdit?.processingFee || 0,
+      accountNumber: loanToEdit?.accountNumber || '',
+      remarks: loanToEdit?.remarks || '',
       generateHistoricalExpenses: 'no',
     },
   });
 
   const { watch, setValue, handleSubmit, reset } = form;
+
+  // Reset form when modal opens or loanToEdit changes
+  useEffect(() => {
+    if (isOpen) {
+      if (loanToEdit) {
+        reset({
+          name: loanToEdit.name,
+          bank: loanToEdit.bank,
+          principal: loanToEdit.principal,
+          interestRate: loanToEdit.interestRate,
+          interestType: loanToEdit.interestType,
+          startDate: new Date(loanToEdit.startDate).toISOString().split('T')[0],
+          tenureMonths: loanToEdit.tenureMonths,
+          emiAmount: loanToEdit.emiAmount,
+          emiDueDate: loanToEdit.emiDueDate,
+          processingFee: loanToEdit.processingFee || 0,
+          accountNumber: loanToEdit.accountNumber || '',
+          remarks: loanToEdit.remarks || '',
+          generateHistoricalExpenses: 'no',
+        });
+      } else {
+        reset({
+          name: '',
+          bank: '',
+          principal: 0,
+          interestRate: 0,
+          interestType: 'fixed',
+          startDate: new Date().toISOString().split('T')[0],
+          tenureMonths: 12,
+          emiAmount: 0,
+          emiDueDate: 1,
+          processingFee: 0,
+          accountNumber: '',
+          remarks: '',
+          generateHistoricalExpenses: 'no',
+        });
+      }
+    }
+  }, [isOpen, loanToEdit, reset]);
   
   const principal = watch('principal');
   const interestRate = watch('interestRate');
@@ -119,31 +160,36 @@ export function AddLoanForm({ isOpen, setIsOpen }: AddLoanFormProps) {
       setIsSubmitting(true);
       const startDate = new Date(data.startDate);
       
-      const interestRateHistory = data.interestType === 'floating' ? [{
-          id: Date.now().toString(),
-          effectiveDate: startDate,
-          interestRate: data.interestRate,
-          emiAmount: data.emiAmount,
-          remarks: 'Initial Rate'
-      }] : [];
-      
-      const expenseSyncStartDate = data.generateHistoricalExpenses === 'yes' 
-        ? startDate 
-        : new Date(); // Using current date so only future EMIs from current month/date are synced
-
       const { generateHistoricalExpenses, ...loanData } = data;
 
-      await addLoan({
-        ...loanData,
-        startDate,
-        interestRateHistory,
-        expenseSyncStartDate
-      });
-      
-      toast({
-        title: 'Success',
-        description: 'Loan added successfully',
-      });
+      if (loanToEdit) {
+        await updateLoan(loanToEdit.id, {
+          ...loanToEdit,
+          ...loanData,
+          startDate,
+        });
+        toast({ title: 'Success', description: 'Loan updated successfully' });
+      } else {
+        const interestRateHistory = data.interestType === 'floating' ? [{
+            id: Date.now().toString(),
+            effectiveDate: startDate,
+            interestRate: data.interestRate,
+            emiAmount: data.emiAmount,
+            remarks: 'Initial Rate'
+        }] : [];
+        
+        const expenseSyncStartDate = data.generateHistoricalExpenses === 'yes' 
+          ? startDate 
+          : new Date();
+
+        await addLoan({
+          ...loanData,
+          startDate,
+          interestRateHistory,
+          expenseSyncStartDate
+        });
+        toast({ title: 'Success', description: 'Loan added successfully' });
+      }
       
       reset();
       setIsOpen(false);
@@ -163,9 +209,9 @@ export function AddLoanForm({ isOpen, setIsOpen }: AddLoanFormProps) {
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
       <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Add New Loan</DialogTitle>
+          <DialogTitle>{loanToEdit ? 'Edit Loan' : 'Add New Loan'}</DialogTitle>
           <DialogDescription>
-            Enter your loan details to track and generate an amortization schedule.
+            {loanToEdit ? 'Update your loan details.' : 'Enter your loan details to track and generate an amortization schedule.'}
           </DialogDescription>
         </DialogHeader>
 
@@ -344,40 +390,42 @@ export function AddLoanForm({ isOpen, setIsOpen }: AddLoanFormProps) {
               />
             </div>
 
-            <FormField
-              control={form.control}
-              name="generateHistoricalExpenses"
-              render={({ field }) => (
-                <FormItem className="space-y-3">
-                  <FormLabel>Would you like to add EMI expenses for the previous months as well?</FormLabel>
-                  <FormControl>
-                    <RadioGroup
-                      onValueChange={field.onChange}
-                      defaultValue={field.value}
-                      className="flex flex-col space-y-1"
-                    >
-                      <FormItem className="flex items-center space-x-3 space-y-0">
-                        <FormControl>
-                          <RadioGroupItem value="yes" />
-                        </FormControl>
-                        <FormLabel className="font-normal cursor-pointer">
-                          <strong>Yes</strong> – Generate expense entries from the loan start date up to the current month.
-                        </FormLabel>
-                      </FormItem>
-                      <FormItem className="flex items-center space-x-3 space-y-0">
-                        <FormControl>
-                          <RadioGroupItem value="no" />
-                        </FormControl>
-                        <FormLabel className="font-normal cursor-pointer">
-                          <strong>No</strong> – Generate expense entries only for future EMIs from the current month onwards.
-                        </FormLabel>
-                      </FormItem>
-                    </RadioGroup>
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+            {!loanToEdit && (
+              <FormField
+                control={form.control}
+                name="generateHistoricalExpenses"
+                render={({ field }) => (
+                  <FormItem className="space-y-3">
+                    <FormLabel>Would you like to add EMI expenses for the previous months as well?</FormLabel>
+                    <FormControl>
+                      <RadioGroup
+                        onValueChange={field.onChange}
+                        defaultValue={field.value}
+                        className="flex flex-col space-y-1"
+                      >
+                        <FormItem className="flex items-center space-x-3 space-y-0">
+                          <FormControl>
+                            <RadioGroupItem value="yes" />
+                          </FormControl>
+                          <FormLabel className="font-normal cursor-pointer">
+                            <strong>Yes</strong> – Generate expense entries from the loan start date up to the current month.
+                          </FormLabel>
+                        </FormItem>
+                        <FormItem className="flex items-center space-x-3 space-y-0">
+                          <FormControl>
+                            <RadioGroupItem value="no" />
+                          </FormControl>
+                          <FormLabel className="font-normal cursor-pointer">
+                            <strong>No</strong> – Generate expense entries only for future EMIs from the current month onwards.
+                          </FormLabel>
+                        </FormItem>
+                      </RadioGroup>
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            )}
 
             <DialogFooter>
               <Button type="button" variant="outline" onClick={() => setIsOpen(false)}>
@@ -390,7 +438,7 @@ export function AddLoanForm({ isOpen, setIsOpen }: AddLoanFormProps) {
                     Saving...
                   </>
                 ) : (
-                  'Save Loan'
+                  loanToEdit ? 'Update Loan' : 'Save Loan'
                 )}
               </Button>
             </DialogFooter>

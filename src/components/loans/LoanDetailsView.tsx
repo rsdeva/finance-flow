@@ -10,10 +10,11 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, Legend } from 'recharts';
-import { Building, Calendar, IndianRupee, Percent, ScrollText, Trash2, PlusCircle, TrendingUp, TrendingDown, ArrowRight } from 'lucide-react';
+import { Building, Calendar, IndianRupee, Percent, ScrollText, Trash2, PlusCircle, TrendingUp, TrendingDown, ArrowRight, Pencil } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useRouter } from 'next/navigation';
 import { AddRevisionDialog } from './AddRevisionDialog';
+import { AddLoanForm } from './AddLoanForm';
 import { useToast } from '@/hooks/use-toast';
 
 export function LoanDetailsView({ loanId }: { loanId: string }) {
@@ -21,6 +22,7 @@ export function LoanDetailsView({ loanId }: { loanId: string }) {
   const router = useRouter();
   const { toast } = useToast();
   const [isRevisionDialogOpen, setIsRevisionDialogOpen] = useState(false);
+  const [isEditFormOpen, setIsEditFormOpen] = useState(false);
   const [deletingRevisionId, setDeletingRevisionId] = useState<string | null>(null);
   
   const loan = useMemo(() => loans.find(l => l.id === loanId), [loans, loanId]);
@@ -129,6 +131,9 @@ export function LoanDetailsView({ loanId }: { loanId: string }) {
               <PlusCircle className="mr-2 h-4 w-4" /> Add Rate Revision
             </Button>
           )}
+          <Button variant="outline" size="icon" onClick={() => setIsEditFormOpen(true)} title="Edit Loan">
+            <Pencil className="h-4 w-4" />
+          </Button>
           <Button variant="destructive" size="icon" onClick={handleDeleteLoan} title="Delete Loan">
             <Trash2 className="h-4 w-4" />
           </Button>
@@ -389,7 +394,21 @@ export function LoanDetailsView({ loanId }: { loanId: string }) {
         </CardContent>
       </Card>
 
-      <AddRevisionDialog isOpen={isRevisionDialogOpen} setIsOpen={setIsRevisionDialogOpen} loan={loan} />
+      {loan.interestType === 'floating' && (
+        <AddRevisionDialog 
+          isOpen={isRevisionDialogOpen} 
+          setIsOpen={setIsRevisionDialogOpen} 
+          loan={loan} 
+        />
+      )}
+      
+      {isEditFormOpen && (
+        <AddLoanForm 
+          isOpen={isEditFormOpen} 
+          setIsOpen={setIsEditFormOpen} 
+          loanToEdit={loan} 
+        />
+      )}
     </div>
   );
 }
