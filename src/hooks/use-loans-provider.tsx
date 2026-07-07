@@ -21,14 +21,21 @@ export function LoansProvider({ children }: { children: ReactNode }) {
     if (isUserLoading || !user) return [];
     if (!rawLoans) return [];
     
+    const parseDate = (val: any) => {
+        if (!val) return new Date();
+        if (typeof val.toDate === 'function') return val.toDate();
+        if (val instanceof Date) return val;
+        return new Date(val);
+    };
+    
     return rawLoans.map((l: any) => ({
       ...l,
-      startDate: l.startDate?.toDate() || new Date(),
-      createdAt: l.createdAt?.toDate() || new Date(),
-      updatedAt: l.updatedAt?.toDate() || new Date(),
+      startDate: parseDate(l.startDate),
+      createdAt: parseDate(l.createdAt),
+      updatedAt: parseDate(l.updatedAt),
       interestRateHistory: (l.interestRateHistory || []).map((rev: any) => ({
           ...rev,
-          effectiveDate: rev.effectiveDate?.toDate() || new Date()
+          effectiveDate: parseDate(rev.effectiveDate)
       }))
     })) as Loan[];
   }, [rawLoans, isUserLoading, user]);
