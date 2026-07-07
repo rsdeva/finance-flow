@@ -248,7 +248,7 @@ export function AddGoldLoanForm({
                 render={({ field }) => (
                   <FormItem className="flex flex-col justify-end">
                     <FormLabel>Start Date *</FormLabel>
-                    <Popover>
+                    <Popover modal={true}>
                       <PopoverTrigger asChild>
                         <FormControl>
                           <Button
@@ -282,7 +282,7 @@ export function AddGoldLoanForm({
                 render={({ field }) => (
                   <FormItem className="flex flex-col justify-end">
                     <FormLabel>Maturity Date (Optional)</FormLabel>
-                    <Popover>
+                    <Popover modal={true}>
                       <PopoverTrigger asChild>
                         <FormControl>
                           <Button
