@@ -78,7 +78,7 @@ export function LoansDashboard() {
     const loanDetails: any[] = [];
 
     loans.forEach(loan => {
-      const schedule = generateAmortizationSchedule(loan.principal, loan.interestRate, loan.tenureMonths, loan.startDate, loan.emiDueDate, loan.emiAmount);
+      const schedule = generateAmortizationSchedule(loan.principal, loan.interestRate, loan.tenureMonths, loan.startDate, loan.emiDueDate, loan.emiAmount, loan.interestRateHistory);
       const entry = schedule.find(e => isSameMonth(e.dueDate, targetDate));
       
       if (entry) {
@@ -188,12 +188,19 @@ export function LoansDashboard() {
               </div>
             ) : (
               loans.map(loan => {
-                 const schedule = generateAmortizationSchedule(loan.principal, loan.interestRate, loan.tenureMonths, loan.startDate, loan.emiDueDate, loan.emiAmount);
+                 const schedule = generateAmortizationSchedule(loan.principal, loan.interestRate, loan.tenureMonths, loan.startDate, loan.emiDueDate, loan.emiAmount, loan.interestRateHistory);
                  const outstanding = getOutstandingBalance(schedule);
                  const progress = ((loan.principal - outstanding) / loan.principal) * 100;
                  
                  const today = startOfDay(new Date());
                  const pendingMonths = schedule.filter(e => !isBefore(startOfDay(e.dueDate), today)).length;
+
+                 let activeEmi = loan.emiAmount;
+                 if (loan.interestRateHistory && loan.interestRateHistory.length > 0) {
+                   const sorted = [...loan.interestRateHistory].sort((a,b) => a.effectiveDate.getTime() - b.effectiveDate.getTime());
+                   const applicable = sorted.filter(h => h.effectiveDate <= new Date()).pop();
+                   if (applicable) activeEmi = applicable.emiAmount;
+                 }
 
                  return (
                   <div key={loan.id} className="relative group">
@@ -206,7 +213,7 @@ export function LoansDashboard() {
                         </div>
                         <div className="text-right space-y-1">
                           <p className="font-medium">Outstanding: {formatINR(outstanding)}</p>
-                          <p className="text-sm text-muted-foreground">EMI: {formatINR(loan.emiAmount)} / mo</p>
+                          <p className="text-sm text-muted-foreground">EMI: {formatINR(activeEmi)} / mo</p>
                         </div>
                       </div>
                     </Link>
