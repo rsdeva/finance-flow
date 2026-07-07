@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { isBefore, startOfDay } from 'date-fns';
 import { z } from 'zod';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -65,48 +66,56 @@ export function AddRevisionDialog({ isOpen, setIsOpen, loan }: AddRevisionDialog
   useEffect(() => {
     if (!effectiveDate || interestRate === undefined) return;
 
-    // Calculate outstanding balance right before this new effective date
-    const targetDate = new Date(effectiveDate);
-    const schedule = generateAmortizationSchedule(loan.principal, loan.interestRate, loan.tenureMonths, loan.startDate, loan.emiDueDate, loan.emiAmount, loan.interestRateHistory);
+    const targetDate = startOfDay(new Date(effectiveDate));
     
-    // Find the outstanding balance at this point in time
-    const outstanding = getOutstandingBalance(schedule, targetDate);
+    // IMPORTANT: Only use history entries strictly BEFORE the new effective date.
+    // This avoids circular dependency and gives the clean prior-state balance.
+    const priorHistory = (loan.interestRateHistory || []).filter(
+      h => isBefore(startOfDay(new Date(h.effectiveDate)), targetDate)
+    );
     
-    // Find remaining months if nothing changed
-    const lastEntry = schedule.length > 0 ? schedule[schedule.length - 1] : null;
-    let currentRemainingTenure = 0;
-    if (lastEntry) {
-       // Estimate remaining tenure based on current schedule
-       const pastEntries = schedule.filter(e => e.dueDate < targetDate).length;
-       currentRemainingTenure = Math.max(1, schedule.length - pastEntries);
-    }
+    const schedule = generateAmortizationSchedule(
+      loan.principal, loan.interestRate, loan.tenureMonths,
+      loan.startDate, loan.emiDueDate, loan.emiAmount, priorHistory
+    );
     
-    // Get the previous EMI amount
-    // The history is already considered in generateAmortizationSchedule. Let's just find the last paid EMI
+    if (schedule.length === 0) return;
+    
+    // Outstanding balance = balance BEFORE the effective month's EMI.
+    // Find the last paid EMI whose due date is strictly before the effective date.
+    const paidEntries = schedule.filter(e => isBefore(startOfDay(e.dueDate), targetDate));
+    const outstanding = paidEntries.length > 0
+      ? paidEntries[paidEntries.length - 1].outstandingBalance  // balance after last payment before new rate
+      : loan.principal; // no EMIs paid yet — full principal applies
+    
+    // Remaining tenure = number of EMI slots from effective date onwards in the prior schedule
+    const remainingEntries = schedule.filter(e => !isBefore(startOfDay(e.dueDate), targetDate));
+    const currentRemainingTenure = Math.max(1, remainingEntries.length);
+    
+    // Current active EMI is the EMI from the most recent prior history entry
     let currentActiveEmi = loan.emiAmount;
-    if (loan.interestRateHistory && loan.interestRateHistory.length > 0) {
-       const sortedHist = [...loan.interestRateHistory].sort((a,b) => a.effectiveDate.getTime() - b.effectiveDate.getTime());
-       const applicableRev = sortedHist.filter(h => h.effectiveDate <= targetDate).pop();
-       if (applicableRev) currentActiveEmi = applicableRev.emiAmount;
+    if (priorHistory.length > 0) {
+      const sorted = [...priorHistory].sort((a, b) => a.effectiveDate.getTime() - b.effectiveDate.getTime());
+      currentActiveEmi = sorted[sorted.length - 1].emiAmount;
     }
 
     if (recalcOption === 'keep_emi') {
       const newTenure = calculateNewTenure(outstanding, interestRate, currentActiveEmi);
-      setPreviewEmi(currentActiveEmi);
+      setPreviewEmi(Math.round(currentActiveEmi * 100) / 100);
       setPreviewTenure(newTenure);
     } else if (recalcOption === 'keep_tenure') {
       const newEmi = calculateEMI(outstanding, interestRate, currentRemainingTenure);
-      setPreviewEmi(newEmi);
+      setPreviewEmi(Math.round(newEmi * 100) / 100);
       setPreviewTenure(currentRemainingTenure);
     } else if (recalcOption === 'manual_emi') {
       const newEmi = manualEmi || currentActiveEmi;
       const newTenure = calculateNewTenure(outstanding, interestRate, newEmi);
-      setPreviewEmi(newEmi);
+      setPreviewEmi(Math.round(newEmi * 100) / 100);
       setPreviewTenure(newTenure);
     } else if (recalcOption === 'manual_tenure') {
       const newTenure = manualTenure || currentRemainingTenure;
       const newEmi = calculateEMI(outstanding, interestRate, newTenure);
-      setPreviewEmi(newEmi);
+      setPreviewEmi(Math.round(newEmi * 100) / 100);
       setPreviewTenure(newTenure);
     }
     
