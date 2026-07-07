@@ -78,7 +78,9 @@ export function GoldLoansProvider({ children }: { children: ReactNode }) {
         updatedAt: serverTimestamp()
       };
 
-      await addDoc(loansCol, dataToSave);
+      const cleanData = Object.fromEntries(Object.entries(dataToSave).filter(([_, v]) => v !== undefined));
+
+      await addDoc(loansCol, cleanData);
     },
     [firestore, user?.uid]
   );
@@ -97,7 +99,9 @@ export function GoldLoansProvider({ children }: { children: ReactNode }) {
         updatedAt: serverTimestamp()
       };
 
-      await updateDoc(loanDoc, dataToUpdate);
+      const cleanData = Object.fromEntries(Object.entries(dataToUpdate).filter(([_, v]) => v !== undefined));
+
+      await updateDoc(loanDoc, cleanData);
     },
     [firestore, user?.uid]
   );
@@ -137,7 +141,9 @@ export function GoldLoansProvider({ children }: { children: ReactNode }) {
         createdAt: serverTimestamp(),
       };
 
-      await addDoc(paymentsCol, dataToSave);
+      const cleanData = Object.fromEntries(Object.entries(dataToSave).filter(([_, v]) => v !== undefined));
+
+      await addDoc(paymentsCol, cleanData);
     },
     [firestore, user?.uid]
   );
