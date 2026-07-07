@@ -11,5 +11,6 @@ export const defaultCategories: ExpenseCategory[] = [
   { id: 'bills', value: 'bills', label: 'Bills & Utilities', icon: 'bills' as IconName },
   { id: 'travel', value: 'travel', label: 'Travel', icon: 'travel' as IconName },
   { id: 'investment', value: 'investment', label: 'Investment', icon: 'trending-up' as IconName },
+  { id: 'loan_repayment', value: 'loan_repayment', label: 'Loan Repayment', icon: 'bank' as IconName },
   { id: 'other', value: 'other', label: 'Other', icon: 'other' as IconName },
 ];

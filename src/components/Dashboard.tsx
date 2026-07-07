@@ -10,7 +10,7 @@ import { FilteredSummary } from './FilteredSummary';
 import { FilterControls, type FilterState } from './FilterControls';
 import { ExpenseList } from './ExpenseList';
 import { Button } from './ui/button';
-import { PlusCircle, Settings, LogOut, Download, Moon, Sun } from 'lucide-react';
+import { PlusCircle, Settings, LogOut, Download, Moon, Sun, Building } from 'lucide-react';
 import { ExpenseForm } from './ExpenseForm';
 import { IncomeForm } from './IncomeForm';
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/components/ui/card';
@@ -23,6 +23,7 @@ import { Skeleton } from './ui/skeleton';
 import { ExportDialog } from './ExportDialog';
 import { useTheme } from 'next-themes';
 import { Tabs, TabsList, TabsTrigger } from './ui/tabs';
+import { LoanTransactionSync } from './loans/LoanTransactionSync';
 
 export function Dashboard() {
   const [isExpenseFormOpen, setIsExpenseFormOpen] = useState(false);
@@ -190,6 +191,11 @@ export function Dashboard() {
             <Moon className="absolute h-[1.2rem] w-[1.2rem] rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
             <span className="sr-only">Toggle theme</span>
           </Button>
+          <Button variant="outline" asChild>
+            <Link href="/loans">
+              <Building className="mr-2 h-4 w-4" /> Loans
+            </Link>
+          </Button>
           <Button variant="outline" size="icon" asChild>
             <Link href="/settings">
               <Settings className="h-4 w-4" />
@@ -206,6 +212,7 @@ export function Dashboard() {
       <ExpenseForm isOpen={isExpenseFormOpen} setIsOpen={handleCloseForms} transaction={editingTransaction?.type === 'expense' ? editingTransaction : undefined} />
       <IncomeForm isOpen={isIncomeFormOpen} setIsOpen={handleCloseForms} transaction={editingTransaction?.type === 'income' ? editingTransaction : undefined} />
       <ExportDialog isOpen={isExportDialogOpen} setIsOpen={setIsExportDialogOpen} allTransactions={transactions} filteredTransactions={filteredTransactions} />
+      <LoanTransactionSync />
 
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
         <FilteredSummary transactions={filteredTransactions} />

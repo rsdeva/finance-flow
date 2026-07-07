@@ -17,6 +17,10 @@ service cloud.firestore {
         allow read, write, delete: if isOwner(userId);
       }
       
+      match /loans/{loanId} {
+        allow read, write, delete: if isOwner(userId);
+      }
+      
       match /preferences/user-preferences {
         allow read, write: if isOwner(userId);
       }
