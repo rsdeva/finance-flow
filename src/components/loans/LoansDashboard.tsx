@@ -13,11 +13,19 @@ import { formatINR } from '@/lib/format-inr';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend, BarChart, Bar, XAxis, YAxis, CartesianGrid } from 'recharts';
 import { format, isSameMonth, parseISO, startOfDay, isBefore } from 'date-fns';
 import { Input } from '@/components/ui/input';
+import { useGoldLoans } from '@/hooks/use-gold-loans';
+import { calculateGoldLoanState } from '@/lib/gold-loan-utils';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { GoldLoansDashboard } from '@/components/gold-loans/GoldLoansDashboard';
 
 export function LoansDashboard() {
-  const { loans, isLoading, deleteLoan } = useLoans();
+  const { loans, isLoading: isLoansLoading, deleteLoan } = useLoans();
+  const { goldLoans, goldLoanPayments, isLoading: isGoldLoansLoading } = useGoldLoans();
+  const isLoading = isLoansLoading || isGoldLoansLoading;
+  
   const [isAddFormOpen, setIsAddFormOpen] = useState(false);
   const [selectedMonth, setSelectedMonth] = useState(() => format(new Date(), 'yyyy-MM'));
+  const [showOutstandingSplit, setShowOutstandingSplit] = useState(false);
 
   const handleDeleteLoan = async (id: string, name: string, e: React.MouseEvent) => {
     e.preventDefault();
@@ -68,6 +76,19 @@ export function LoansDashboard() {
       chartData
     };
   }, [loans]);
+
+  const goldLoansAggregated = useMemo(() => {
+    let totalOutstanding = 0;
+    const activeLoans = goldLoans.filter(l => l.status === 'active');
+    activeLoans.forEach(loan => {
+      const payments = goldLoanPayments.filter(p => p.loanId === loan.id);
+      const state = calculateGoldLoanState(loan, payments);
+      totalOutstanding += state.totalOutstanding;
+    });
+    return { totalOutstanding };
+  }, [goldLoans, goldLoanPayments]);
+
+  const combinedOutstanding = aggregatedData.totalOutstanding + goldLoansAggregated.totalOutstanding;
 
   // Monthly breakdown calculation
   const monthlyBreakdown = useMemo(() => {
@@ -122,28 +143,48 @@ export function LoansDashboard() {
       <div className="flex items-center justify-between">
         <h2 className="text-3xl font-bold tracking-tight">Loan Management</h2>
         <Button onClick={() => setIsAddFormOpen(true)}>
-          <PlusCircle className="mr-2 h-4 w-4" /> Add Loan
+          <PlusCircle className="mr-2 h-4 w-4" /> Add EMI Loan
         </Button>
       </div>
 
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Active Loans</CardTitle>
+            <CardTitle className="text-sm font-medium">Total Outstanding</CardTitle>
+            <IndianRupee className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent 
+            className="cursor-pointer group relative" 
+            onClick={() => setShowOutstandingSplit(!showOutstandingSplit)}
+            title="Click to toggle split view"
+          >
+            <div className="text-2xl font-bold transition-colors group-hover:text-primary">
+              {formatINR(combinedOutstanding)}
+            </div>
+            {!showOutstandingSplit ? (
+              <p className="text-xs text-muted-foreground mt-1">Total EMI + Gold Loans</p>
+            ) : (
+              <div className="text-xs space-y-1 mt-2 p-2 bg-muted/50 rounded border animate-in fade-in zoom-in-95 duration-200">
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">EMI Loans:</span>
+                  <span className="font-medium">{formatINR(aggregatedData.totalOutstanding)}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Gold Loans:</span>
+                  <span className="font-medium text-primary">{formatINR(goldLoansAggregated.totalOutstanding)}</span>
+                </div>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Active EMI Loans</CardTitle>
             <Building className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{loans.length}</div>
-          </CardContent>
-        </Card>
-        
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Outstanding</CardTitle>
-            <IndianRupee className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{formatINR(aggregatedData.totalOutstanding)}</div>
             <p className="text-xs text-muted-foreground">
               Original Principal: {formatINR(aggregatedData.totalPrincipal)}
             </p>
@@ -176,8 +217,15 @@ export function LoansDashboard() {
         </Card>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">
-        <Card className="col-span-4">
+      <Tabs defaultValue="emi" className="w-full">
+        <TabsList className="grid w-full grid-cols-2 md:w-[400px]">
+          <TabsTrigger value="emi">EMI Loans</TabsTrigger>
+          <TabsTrigger value="gold">Gold Loans</TabsTrigger>
+        </TabsList>
+        
+        <TabsContent value="emi" className="space-y-6 pt-4">
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">
+            <Card className="col-span-4">
           <CardHeader>
             <CardTitle>Your Loans</CardTitle>
           </CardHeader>
@@ -319,8 +367,14 @@ export function LoansDashboard() {
               No active EMIs for the selected month.
             </div>
           )}
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
+        </TabsContent>
+
+        <TabsContent value="gold" className="pt-4">
+          <GoldLoansDashboard />
+        </TabsContent>
+      </Tabs>
 
       <AddLoanForm isOpen={isAddFormOpen} setIsOpen={setIsAddFormOpen} />
     </div>

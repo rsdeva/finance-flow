@@ -9,6 +9,7 @@ import { CategoriesProvider } from '@/hooks/use-categories-provider';
 import { PaymentMethodsProvider } from '@/hooks/use-payment-methods-provider';
 import { InvestmentCategoriesProvider } from '@/hooks/use-investment-categories-provider';
 import { LoansProvider } from '@/hooks/use-loans-provider';
+import { GoldLoansProvider } from '@/hooks/use-gold-loans-provider';
 
 const inter = Inter({ subsets: ['latin'], variable: '--font-inter' });
 
@@ -36,7 +37,9 @@ export default function RootLayout({
               <PaymentMethodsProvider>
                 <InvestmentCategoriesProvider>
                   <LoansProvider>
-                    <TransactionsProvider>{children}</TransactionsProvider>
+                    <GoldLoansProvider>
+                      <TransactionsProvider>{children}</TransactionsProvider>
+                    </GoldLoansProvider>
                   </LoansProvider>
                 </InvestmentCategoriesProvider>
               </PaymentMethodsProvider>

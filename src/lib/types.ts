@@ -79,3 +79,34 @@ export type LoanPayment = {
   type: 'emi' | 'prepayment';
   notes?: string;
 };
+
+export type GoldLoan = {
+  id: string;
+  name: string;
+  bank: string;
+  accountNumber?: string;
+  principal: number;
+  interestRate: number; // Annual interest rate
+  interestType: 'simple' | 'compound';
+  startDate: Date;
+  maturityDate?: Date;
+  paymentFrequency: 'monthly' | 'quarterly' | 'at_closure';
+  goldWeight: number; // in grams
+  goldPurity?: string; // e.g., '22K', '24K'
+  remarks?: string;
+  status: 'active' | 'closed';
+  createdAt: Date;
+  updatedAt: Date;
+};
+
+export type GoldLoanPayment = {
+  id: string;
+  loanId: string;
+  date: Date;
+  amount: number;
+  paymentType: 'interest' | 'principal' | 'both';
+  principalComponent?: number;
+  interestComponent?: number;
+  remarks?: string;
+  createdAt: Date;
+};

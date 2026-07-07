@@ -10,7 +10,7 @@ import { FilteredSummary } from './FilteredSummary';
 import { FilterControls, type FilterState } from './FilterControls';
 import { ExpenseList } from './ExpenseList';
 import { Button } from './ui/button';
-import { PlusCircle, Settings, LogOut, Download, Moon, Sun, Building } from 'lucide-react';
+import { Settings, LogOut, Download, PlusCircle, Building, Sun, Moon, Coins } from 'lucide-react';
 import { ExpenseForm } from './ExpenseForm';
 import { IncomeForm } from './IncomeForm';
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/components/ui/card';
