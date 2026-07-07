@@ -17,8 +17,11 @@ import { useGoldLoans } from '@/hooks/use-gold-loans';
 import { calculateGoldLoanState } from '@/lib/gold-loan-utils';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { GoldLoansDashboard } from '@/components/gold-loans/GoldLoansDashboard';
+import { useSearchParams } from 'next/navigation';
 
 export function LoansDashboard() {
+  const searchParams = useSearchParams();
+  const defaultTab = searchParams.get('tab') === 'gold' ? 'gold' : 'emi';
   const { loans, isLoading: isLoansLoading, deleteLoan } = useLoans();
   const { goldLoans, goldLoanPayments, isLoading: isGoldLoansLoading } = useGoldLoans();
   const isLoading = isLoansLoading || isGoldLoansLoading;
@@ -39,11 +42,15 @@ export function LoansDashboard() {
   };
 
   // Aggregate calculations
-  const aggregatedData = useMemo(() => {
+  const { activeLoans, closedLoans, aggregatedData } = useMemo(() => {
     let totalOutstanding = 0;
     let totalEmi = 0;
     let totalPrincipal = 0;
     const chartData: any[] = [];
+    const active: any[] = [];
+    const closed: any[] = [];
+
+    const today = startOfDay(new Date());
 
     loans.forEach(loan => {
       const schedule = generateAmortizationSchedule(
@@ -51,29 +58,35 @@ export function LoansDashboard() {
         loan.startDate, loan.emiDueDate, loan.emiAmount, loan.interestRateHistory
       );
       const outstanding = getOutstandingBalance(schedule);
+      const pendingMonths = schedule.filter(e => !isBefore(startOfDay(e.dueDate), today)).length;
       
-      totalOutstanding += outstanding;
-      // Use current active EMI for floating loans
       let activeEmi = loan.emiAmount;
       if (loan.interestRateHistory && loan.interestRateHistory.length > 0) {
         const sorted = [...loan.interestRateHistory].sort((a,b) => a.effectiveDate.getTime() - b.effectiveDate.getTime());
         const applicable = sorted.filter(h => h.effectiveDate <= new Date()).pop();
         if (applicable) activeEmi = applicable.emiAmount;
       }
-      totalEmi += activeEmi;
-      totalPrincipal += loan.principal;
 
-      chartData.push({
-        name: loan.name,
-        value: outstanding
-      });
+      const loanDetail = { loan, schedule, outstanding, pendingMonths, activeEmi };
+
+      if (pendingMonths > 0) {
+        active.push(loanDetail);
+        totalOutstanding += outstanding;
+        totalEmi += activeEmi;
+        totalPrincipal += loan.principal;
+        chartData.push({
+          name: loan.name,
+          value: outstanding
+        });
+      } else {
+        closed.push(loanDetail);
+      }
     });
 
     return {
-      totalOutstanding,
-      totalEmi,
-      totalPrincipal,
-      chartData
+      activeLoans: active,
+      closedLoans: closed,
+      aggregatedData: { totalOutstanding, totalEmi, totalPrincipal, chartData }
     };
   }, [loans]);
 
@@ -184,7 +197,7 @@ export function LoansDashboard() {
             <Building className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{loans.length}</div>
+            <div className="text-2xl font-bold">{activeLoans.length}</div>
             <p className="text-xs text-muted-foreground">
               Original Principal: {formatINR(aggregatedData.totalPrincipal)}
             </p>
@@ -217,7 +230,7 @@ export function LoansDashboard() {
         </Card>
       </div>
 
-      <Tabs defaultValue="emi" className="w-full">
+      <Tabs defaultValue={defaultTab} className="w-full">
         <TabsList className="grid w-full grid-cols-2 md:w-[400px]">
           <TabsTrigger value="emi">EMI Loans</TabsTrigger>
           <TabsTrigger value="gold">Gold Loans</TabsTrigger>
@@ -227,66 +240,87 @@ export function LoansDashboard() {
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">
             <Card className="col-span-4">
           <CardHeader>
-            <CardTitle>Your Loans</CardTitle>
+            <CardTitle>Active Loans</CardTitle>
           </CardHeader>
           <CardContent className="grid gap-4">
-            {loans.length === 0 ? (
+            {activeLoans.length === 0 ? (
               <div className="text-center py-8 text-muted-foreground">
-                No loans added yet.
+                No active loans.
               </div>
             ) : (
-              loans.map(loan => {
-                 const schedule = generateAmortizationSchedule(loan.principal, loan.interestRate, loan.tenureMonths, loan.startDate, loan.emiDueDate, loan.emiAmount, loan.interestRateHistory);
-                 const outstanding = getOutstandingBalance(schedule);
-                 const progress = ((loan.principal - outstanding) / loan.principal) * 100;
-                 
-                 const today = startOfDay(new Date());
-                 const pendingMonths = schedule.filter(e => !isBefore(startOfDay(e.dueDate), today)).length;
-
-                 let activeEmi = loan.emiAmount;
-                 if (loan.interestRateHistory && loan.interestRateHistory.length > 0) {
-                   const sorted = [...loan.interestRateHistory].sort((a,b) => a.effectiveDate.getTime() - b.effectiveDate.getTime());
-                   const applicable = sorted.filter(h => h.effectiveDate <= new Date()).pop();
-                   if (applicable) activeEmi = applicable.emiAmount;
-                 }
-
-                 return (
-                  <div key={loan.id} className="relative group">
-                    <Link href={`/loans/${loan.id}`} className="block">
-                      <div className="flex items-center justify-between p-4 border rounded-lg transition-colors group-hover:border-primary group-hover:bg-muted/50 pr-12">
-                        <div className="space-y-1">
-                          <p className="font-medium leading-none">{loan.name}</p>
-                          <p className="text-sm text-muted-foreground">{loan.bank}</p>
-                          <p className="text-xs text-primary mt-1">Pending Tenure: {pendingMonths} months</p>
-                        </div>
-                        <div className="text-right space-y-1">
-                          <p className="font-medium">Outstanding: {formatINR(outstanding)}</p>
-                          <p className="text-sm text-muted-foreground">EMI: {formatINR(activeEmi)} / mo</p>
-                        </div>
+              activeLoans.map(({ loan, outstanding, pendingMonths, activeEmi }) => (
+                <div key={loan.id} className="relative group">
+                  <Link href={`/loans/${loan.id}`} className="block">
+                    <div className="flex items-center justify-between p-4 border rounded-lg transition-colors group-hover:border-primary group-hover:bg-muted/50 pr-12">
+                      <div className="space-y-1">
+                        <p className="font-medium leading-none">{loan.name}</p>
+                        <p className="text-sm text-muted-foreground">{loan.bank}</p>
+                        <p className="text-xs text-primary mt-1">Pending Tenure: {pendingMonths} months</p>
                       </div>
-                    </Link>
-                    <Button 
-                      variant="ghost" 
-                      size="icon" 
-                      className="absolute right-2 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-destructive"
-                      onClick={(e) => handleDeleteLoan(loan.id, loan.name, e)}
-                      title="Delete Loan"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </div>
-                 )
-              })
+                      <div className="text-right space-y-1">
+                        <p className="font-medium">Outstanding: {formatINR(outstanding)}</p>
+                        <p className="text-sm text-muted-foreground">EMI: {formatINR(activeEmi)} / mo</p>
+                      </div>
+                    </div>
+                  </Link>
+                  <Button 
+                    variant="ghost" 
+                    size="icon" 
+                    className="absolute right-2 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-destructive"
+                    onClick={(e) => handleDeleteLoan(loan.id, loan.name, e)}
+                    title="Delete Loan"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </div>
+              ))
             )}
           </CardContent>
         </Card>
+
+        {closedLoans.length > 0 && (
+          <Card className="col-span-4 lg:col-span-7 mt-4 lg:mt-0">
+            <CardHeader>
+              <CardTitle>Closed Loans</CardTitle>
+            </CardHeader>
+            <CardContent className="grid gap-4">
+              {closedLoans.map(({ loan }) => (
+                <div key={loan.id} className="relative group opacity-70 hover:opacity-100 transition-opacity">
+                  <Link href={`/loans/${loan.id}`} className="block">
+                    <div className="flex items-center justify-between p-4 border rounded-lg transition-colors group-hover:border-primary group-hover:bg-muted/50 pr-12">
+                      <div className="space-y-1">
+                        <div className="flex items-center gap-2">
+                          <p className="font-medium leading-none line-through">{loan.name}</p>
+                          <Badge variant="secondary">Closed</Badge>
+                        </div>
+                        <p className="text-sm text-muted-foreground">{loan.bank}</p>
+                      </div>
+                      <div className="text-right space-y-1">
+                        <p className="font-medium text-muted-foreground">Fully Paid</p>
+                      </div>
+                    </div>
+                  </Link>
+                  <Button 
+                    variant="ghost" 
+                    size="icon" 
+                    className="absolute right-2 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-destructive"
+                    onClick={(e) => handleDeleteLoan(loan.id, loan.name, e)}
+                    title="Delete Loan"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </div>
+              ))}
+            </CardContent>
+          </Card>
+        )}
 
         <Card className="col-span-3">
           <CardHeader>
             <CardTitle>Outstanding Distribution</CardTitle>
           </CardHeader>
           <CardContent className="pl-2 h-[300px]">
-            {loans.length > 0 && aggregatedData.totalOutstanding > 0 ? (
+            {activeLoans.length > 0 && aggregatedData.totalOutstanding > 0 ? (
               <ResponsiveContainer width="100%" height="100%">
                 <PieChart>
                   <Pie

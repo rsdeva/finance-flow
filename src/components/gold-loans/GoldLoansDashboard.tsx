@@ -29,14 +29,16 @@ export function GoldLoansDashboard() {
     }
   };
 
-  const aggregatedData = useMemo(() => {
+  const { activeGoldLoans, closedGoldLoans, aggregatedData } = useMemo(() => {
     let totalPrincipal = 0;
     let totalOutstanding = 0;
     let totalInterestAccrued = 0;
     const chartData: any[] = [];
-    const activeLoans = goldLoans.filter(l => l.status === 'active');
+    
+    const active = goldLoans.filter(l => l.status === 'active');
+    const closed = goldLoans.filter(l => l.status === 'closed');
 
-    activeLoans.forEach(loan => {
+    active.forEach(loan => {
       const payments = goldLoanPayments.filter(p => p.loanId === loan.id);
       const state = calculateGoldLoanState(loan, payments);
       
@@ -51,11 +53,15 @@ export function GoldLoansDashboard() {
     });
 
     return {
-      totalPrincipal,
-      totalOutstanding,
-      totalInterestAccrued,
-      chartData,
-      activeLoansCount: activeLoans.length
+      activeGoldLoans: active,
+      closedGoldLoans: closed,
+      aggregatedData: {
+        totalPrincipal,
+        totalOutstanding,
+        totalInterestAccrued,
+        chartData,
+        activeLoansCount: active.length
+      }
     };
   }, [goldLoans, goldLoanPayments]);
 
@@ -122,15 +128,15 @@ export function GoldLoansDashboard() {
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">
         <Card className="col-span-4">
           <CardHeader>
-            <CardTitle>Your Gold Loans</CardTitle>
+            <CardTitle>Active Gold Loans</CardTitle>
           </CardHeader>
           <CardContent className="grid gap-4">
-            {goldLoans.length === 0 ? (
+            {activeGoldLoans.length === 0 ? (
               <div className="text-center py-8 text-muted-foreground">
-                No gold loans added yet.
+                No active gold loans.
               </div>
             ) : (
-              goldLoans.map(loan => {
+              activeGoldLoans.map(loan => {
                  const payments = goldLoanPayments.filter(p => p.loanId === loan.id);
                  const state = calculateGoldLoanState(loan, payments);
                  
@@ -140,14 +146,12 @@ export function GoldLoansDashboard() {
 
                  return (
                   <div key={loan.id} className="relative group">
-                    <Link href={`/gold-loans/${loan.id}`} className="block">
+                    <Link href={`/loans/gold/${loan.id}`} className="block">
                       <div className="flex items-center justify-between p-4 border rounded-lg transition-colors group-hover:border-primary group-hover:bg-muted/50 pr-12">
                         <div className="space-y-1">
                           <div className="flex items-center gap-2">
                             <p className="font-medium leading-none">{loan.name}</p>
-                            {loan.status === 'closed' ? (
-                               <Badge variant="secondary">Closed</Badge>
-                            ) : maturityDays !== null && maturityDays < 30 ? (
+                            {maturityDays !== null && maturityDays < 30 ? (
                                <Badge variant="destructive">Matures in {maturityDays} days</Badge>
                             ) : null}
                           </div>
@@ -176,6 +180,48 @@ export function GoldLoansDashboard() {
           </CardContent>
         </Card>
 
+        {closedGoldLoans.length > 0 && (
+          <Card className="col-span-4 lg:col-span-7 mt-4 lg:mt-0">
+            <CardHeader>
+              <CardTitle>Closed Gold Loans</CardTitle>
+            </CardHeader>
+            <CardContent className="grid gap-4">
+              {closedGoldLoans.map(loan => {
+                 const payments = goldLoanPayments.filter(p => p.loanId === loan.id);
+                 const state = calculateGoldLoanState(loan, payments);
+                 
+                 return (
+                  <div key={loan.id} className="relative group opacity-70 hover:opacity-100 transition-opacity">
+                    <Link href={`/loans/gold/${loan.id}`} className="block">
+                      <div className="flex items-center justify-between p-4 border rounded-lg transition-colors group-hover:border-primary group-hover:bg-muted/50 pr-12">
+                        <div className="space-y-1">
+                          <div className="flex items-center gap-2">
+                            <p className="font-medium leading-none line-through">{loan.name}</p>
+                            <Badge variant="secondary">Closed</Badge>
+                          </div>
+                          <p className="text-sm text-muted-foreground">{loan.bank} • {loan.goldWeight}g {loan.goldPurity}</p>
+                        </div>
+                        <div className="text-right space-y-1">
+                          <p className="font-medium text-muted-foreground">Fully Paid</p>
+                          <p className="text-sm text-muted-foreground">Settled: {formatINR(state.totalInterestPaid + state.totalPrincipalPaid)}</p>
+                        </div>
+                      </div>
+                    </Link>
+                    <Button 
+                      variant="ghost" 
+                      size="icon" 
+                      className="absolute right-2 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-destructive"
+                      onClick={(e) => handleDeleteLoan(loan.id, loan.name, e)}
+                      title="Delete Loan"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
+                 )
+              })}
+          </CardContent>
+        </Card>
+        )}
         <Card className="col-span-3">
           <CardHeader>
             <CardTitle>Liability Distribution</CardTitle>
