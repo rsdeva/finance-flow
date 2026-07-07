@@ -6,15 +6,26 @@ import { useLoans } from '@/hooks/use-loans';
 import { AddLoanForm } from './AddLoanForm';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { PlusCircle, Building, Calendar, IndianRupee, TrendingDown } from 'lucide-react';
+import { PlusCircle, Building, Calendar, IndianRupee, TrendingDown, Trash2 } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { generateAmortizationSchedule, getOutstandingBalance } from '@/lib/loan-utils';
 import { formatINR } from '@/lib/format-inr';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from 'recharts';
 
 export function LoansDashboard() {
-  const { loans, isLoading } = useLoans();
+  const { loans, isLoading, deleteLoan } = useLoans();
   const [isAddFormOpen, setIsAddFormOpen] = useState(false);
+
+  const handleDeleteLoan = async (id: string, name: string, e: React.MouseEvent) => {
+    e.preventDefault();
+    if (window.confirm(`Are you sure you want to delete the loan "${name}"? This action cannot be undone.`)) {
+      try {
+        await deleteLoan(id);
+      } catch (error) {
+        console.error('Failed to delete loan', error);
+      }
+    }
+  };
 
   // Aggregate calculations
   const aggregatedData = useMemo(() => {
@@ -151,18 +162,29 @@ export function LoansDashboard() {
                  const progress = ((loan.principal - outstanding) / loan.principal) * 100;
 
                  return (
-                  <Link href={`/loans/${loan.id}`} key={loan.id} className="block group">
-                    <div className="flex items-center justify-between p-4 border rounded-lg transition-colors group-hover:border-primary group-hover:bg-muted/50">
-                      <div className="space-y-1">
-                        <p className="font-medium leading-none">{loan.name}</p>
-                        <p className="text-sm text-muted-foreground">{loan.bank}</p>
+                  <div key={loan.id} className="relative group">
+                    <Link href={`/loans/${loan.id}`} className="block">
+                      <div className="flex items-center justify-between p-4 border rounded-lg transition-colors group-hover:border-primary group-hover:bg-muted/50 pr-12">
+                        <div className="space-y-1">
+                          <p className="font-medium leading-none">{loan.name}</p>
+                          <p className="text-sm text-muted-foreground">{loan.bank}</p>
+                        </div>
+                        <div className="text-right space-y-1">
+                          <p className="font-medium">Outstanding: {formatINR(outstanding)}</p>
+                          <p className="text-sm text-muted-foreground">EMI: {formatINR(loan.emiAmount)} / mo</p>
+                        </div>
                       </div>
-                      <div className="text-right space-y-1">
-                        <p className="font-medium">Outstanding: {formatINR(outstanding)}</p>
-                        <p className="text-sm text-muted-foreground">EMI: {formatINR(loan.emiAmount)} / mo</p>
-                      </div>
-                    </div>
-                  </Link>
+                    </Link>
+                    <Button 
+                      variant="ghost" 
+                      size="icon" 
+                      className="absolute right-2 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-destructive"
+                      onClick={(e) => handleDeleteLoan(loan.id, loan.name, e)}
+                      title="Delete Loan"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
                  )
               })
             )}

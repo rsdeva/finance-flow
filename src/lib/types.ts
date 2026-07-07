@@ -56,6 +56,7 @@ export type Loan = {
   accountNumber?: string;
   remarks?: string;
   interestRateHistory?: InterestRateRevision[];
+  expenseSyncStartDate?: Date;
   createdAt: Date;
   updatedAt: Date;
 };

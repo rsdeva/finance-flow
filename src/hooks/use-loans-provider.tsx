@@ -3,7 +3,7 @@
 import { ReactNode, useCallback, useMemo } from 'react';
 import type { Loan } from '@/lib/types';
 import { useFirestore, useUser, useCollection, useMemoFirebase } from '@/firebase';
-import { collection, addDoc, updateDoc, deleteDoc, doc, Timestamp, serverTimestamp, query, orderBy } from 'firebase/firestore';
+import { collection, addDoc, updateDoc, deleteDoc, doc, Timestamp, serverTimestamp, query, orderBy, where, getDocs, writeBatch } from 'firebase/firestore';
 import { LoansContext } from './use-loans';
 
 export function LoansProvider({ children }: { children: ReactNode }) {
@@ -93,7 +93,22 @@ export function LoansProvider({ children }: { children: ReactNode }) {
         throw new Error('User is not authenticated.');
       }
       const loanDoc = doc(firestore, 'users', user.uid, 'loans', id);
-      await deleteDoc(loanDoc);
+      
+      // Delete the loan and all associated transactions in a batch
+      const txQuery = query(
+        collection(firestore, 'users', user.uid, 'transactions'),
+        where('loanId', '==', id)
+      );
+      const txSnapshot = await getDocs(txQuery);
+      
+      const batch = writeBatch(firestore);
+      batch.delete(loanDoc);
+      
+      txSnapshot.forEach((txDoc) => {
+        batch.delete(txDoc.ref);
+      });
+      
+      await batch.commit();
     },
     [firestore, user?.uid]
   );

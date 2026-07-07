@@ -19,6 +19,7 @@ import {
   DialogTitle,
   DialogFooter,
 } from '@/components/ui/dialog';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import {
   Form,
   FormControl,
@@ -44,6 +45,7 @@ const loanSchema = z.object({
   processingFee: z.coerce.number().optional(),
   accountNumber: z.string().optional(),
   remarks: z.string().optional(),
+  generateHistoricalExpenses: z.enum(['yes', 'no']),
 });
 
 type LoanFormValues = z.infer<typeof loanSchema>;
@@ -76,6 +78,7 @@ export function AddLoanForm({ isOpen, setIsOpen }: AddLoanFormProps) {
       processingFee: 0,
       accountNumber: '',
       remarks: '',
+      generateHistoricalExpenses: 'no',
     },
   });
 
@@ -123,11 +126,18 @@ export function AddLoanForm({ isOpen, setIsOpen }: AddLoanFormProps) {
           emiAmount: data.emiAmount,
           remarks: 'Initial Rate'
       }] : [];
+      
+      const expenseSyncStartDate = data.generateHistoricalExpenses === 'yes' 
+        ? startDate 
+        : new Date(); // Using current date so only future EMIs from current month/date are synced
+
+      const { generateHistoricalExpenses, ...loanData } = data;
 
       await addLoan({
-        ...data,
+        ...loanData,
         startDate,
-        interestRateHistory
+        interestRateHistory,
+        expenseSyncStartDate
       });
       
       toast({
@@ -333,6 +343,41 @@ export function AddLoanForm({ isOpen, setIsOpen }: AddLoanFormProps) {
                 )}
               />
             </div>
+
+            <FormField
+              control={form.control}
+              name="generateHistoricalExpenses"
+              render={({ field }) => (
+                <FormItem className="space-y-3">
+                  <FormLabel>Would you like to add EMI expenses for the previous months as well?</FormLabel>
+                  <FormControl>
+                    <RadioGroup
+                      onValueChange={field.onChange}
+                      defaultValue={field.value}
+                      className="flex flex-col space-y-1"
+                    >
+                      <FormItem className="flex items-center space-x-3 space-y-0">
+                        <FormControl>
+                          <RadioGroupItem value="yes" />
+                        </FormControl>
+                        <FormLabel className="font-normal cursor-pointer">
+                          <strong>Yes</strong> – Generate expense entries from the loan start date up to the current month.
+                        </FormLabel>
+                      </FormItem>
+                      <FormItem className="flex items-center space-x-3 space-y-0">
+                        <FormControl>
+                          <RadioGroupItem value="no" />
+                        </FormControl>
+                        <FormLabel className="font-normal cursor-pointer">
+                          <strong>No</strong> – Generate expense entries only for future EMIs from the current month onwards.
+                        </FormLabel>
+                      </FormItem>
+                    </RadioGroup>
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
 
             <DialogFooter>
               <Button type="button" variant="outline" onClick={() => setIsOpen(false)}>

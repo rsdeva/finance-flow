@@ -4,7 +4,7 @@ import { useEffect, useRef } from 'react';
 import { useLoans } from '@/hooks/use-loans';
 import { useTransactions } from '@/hooks/use-transactions';
 import { generateAmortizationSchedule } from '@/lib/loan-utils';
-import { isBefore, isSameDay, startOfDay } from 'date-fns';
+import { isBefore, isSameDay, startOfDay, startOfMonth } from 'date-fns';
 
 export function LoanTransactionSync() {
   const { loans, isLoading: isLoansLoading } = useLoans();
@@ -30,11 +30,19 @@ export function LoanTransactionSync() {
           loan.emiAmount
         );
 
-        // Find EMIs that are due today or in the past
+        // Determine from when to start syncing
+        const syncStart = loan.expenseSyncStartDate 
+          ? startOfMonth(new Date(loan.expenseSyncStartDate)) 
+          : startOfDay(new Date(loan.startDate));
+
+        // Find EMIs that are due today or in the past, BUT on or after syncStart
         const dueEMIs = schedule.filter(
-          (entry) =>
-            isBefore(startOfDay(entry.dueDate), today) ||
-            isSameDay(startOfDay(entry.dueDate), today)
+          (entry) => {
+            const dueDate = startOfDay(entry.dueDate);
+            const isPastOrToday = isBefore(dueDate, today) || isSameDay(dueDate, today);
+            const isAfterSyncStart = !isBefore(dueDate, syncStart);
+            return isPastOrToday && isAfterSyncStart;
+          }
         );
 
         for (const emi of dueEMIs) {
