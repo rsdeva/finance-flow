@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -86,7 +86,7 @@ export function AddLoanForm({ isOpen, setIsOpen }: AddLoanFormProps) {
   const emiAmount = watch('emiAmount');
 
   // Keep track of the last EMI we auto-calculated so we know if the user manually overrode it
-  const lastAutoCalculatedEmi = React.useRef<number>(0);
+  const lastAutoCalculatedEmi = useRef<number>(0);
 
   // Auto calculate EMI when inputs change
   useEffect(() => {
